@@ -257,8 +257,15 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  "@cardos/core": link:packages/core
+
 importers:
   .:
+    dependencies:
+      "@cardos/core":
+        specifier: link:packages/core
+        version: link:packages/core
     devDependencies:
       "@types/node":
         specifier: ^26.1.1
@@ -279,6 +286,8 @@ importers:
   packages/core: {}
   
   packages/kernel: {}
+
+  packages/suited-decks: {}
 
 packages:
   "@esbuild/aix-ppc64@0.28.1":
