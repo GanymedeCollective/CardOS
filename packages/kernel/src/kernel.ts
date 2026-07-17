@@ -67,6 +67,12 @@ export class Kernel {
         `Kernel.start() expected phase "loaded", got "${this.#phase}"`,
       );
     }
+
+    const startups = this.#modules.filter((m) => m.start);
+    for (const mod of startups) {
+      mod.start!(this.#buildContext(mod.id));
+    }
+
     this.#phase = "running";
     this.#emitter.emit("kernel:running");
   }
@@ -84,9 +90,13 @@ export class Kernel {
       on: (event, listener) => this.#emitter.on(event, listener),
       off: (event, listener) => this.#emitter.off(event, listener),
       emit: (event, payload) => this.#emitter.emit(event, payload),
-      rng: () => this.#rng.next(),
+      rng: this.#rng,
       clock: {
-        tick: () => this.#clock.tick(),
+        tick: () => {
+          if (this.#phase != "running")
+            throw new Error("No tick while not running");
+          return this.#clock.tick();
+        },
         now: () => this.#clock.now(),
       },
     };
