@@ -4,3 +4,4 @@ allowBuilds:
   esbuild: false
 overrides:
   "@cardos/core": link:packages/core
+  "@cardos/kernel": link:packages/kernel

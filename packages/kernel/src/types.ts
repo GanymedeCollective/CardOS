@@ -1,3 +1,4 @@
+import type { Kernel } from "./kernel.js";
 import type { RNGService } from "./rng.js";
 
 export type LifecyclePhase =
@@ -23,7 +24,16 @@ export interface ModuleDefinition {
   start?(kernel: KernelContext): void;
 }
 
+
+export interface ServiceDefinition<TApi = unknown> {
+  id: string;
+  create(kernel: Kernel): TApi;
+  start?(api: TApi, kernel: KernelContext): void;
+  destroy?(api: TApi): void;
+  api?: TApi;
+}
+
 export interface KernelOptions {
-  modules: ModuleDefinition[];
+  modules?: ModuleDefinition[];
   seed?: number;
 }

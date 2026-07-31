@@ -4,6 +4,7 @@ import {
   type KernelContext,
   type KernelOptions,
   type ModuleDefinition,
+  type ServiceDefinition,
 } from "./types.js";
 import { createRNG, type RNGService } from "./rng.js";
 import { createClock, type ClockService } from "./clock.js";
@@ -14,9 +15,11 @@ export class Kernel {
   #rng: RNGService;
   #clock: ClockService;
   #modules: ModuleDefinition[];
+  #services: ServiceDefinition[] = [];
+  #apis: Record<string, any> = {};
 
   constructor(options: KernelOptions) {
-    this.#modules = options.modules;
+    this.#modules = options.modules ?? [];
     this.#rng = createRNG(options.seed ?? Date.now());
     this.#clock = createClock((tick) =>
       this.#emitter.emit("kernel:tick", tick),
@@ -50,11 +53,15 @@ export class Kernel {
     this.#phase = "loading";
     this.#emitter.emit("kernel:loading");
 
-    const setups = [];
-    for (const mod of this.#modules) {
-      setups.push(mod.setup(this.#buildContext(mod.id)));
+    for (const service of this.#services.filter((s) => s.start)) {
+      if (!service.api) 
+        throw new Error(
+          `Trying to start an unresolved service "${service.id}"`
+      )
+      service.start!(service.api!, this.#buildContext(service.id));
     }
 
+    const setups = this.#modules.map((mod) => mod.setup(this.#buildContext(mod.id)));
     await Promise.all(setups);
 
     this.#phase = "loaded";
@@ -68,9 +75,8 @@ export class Kernel {
       );
     }
 
-    const startups = this.#modules.filter((m) => m.start);
-    for (const mod of startups) {
-      mod.start!(this.#buildContext(mod.id));
+    for (const mod of this.#modules.filter((m) => m.start)) {
+      mod.start?.(this.#buildContext(mod.id));
     }
 
     this.#phase = "running";
@@ -89,7 +95,9 @@ export class Kernel {
       moduleId,
       on: (event, listener) => this.#emitter.on(event, listener),
       off: (event, listener) => this.#emitter.off(event, listener),
-      emit: (event, payload) => this.#emitter.emit(event, payload),
+      emit: (event, payload) => {
+        this.#emitter.emit(event, payload)
+      },
       rng: this.#rng,
       clock: {
         tick: () => {
@@ -99,6 +107,20 @@ export class Kernel {
         },
         now: () => this.#clock.now(),
       },
+      ...this.#apis
     };
+  }
+
+  resolve(service: ServiceDefinition) {
+    const descriptor = Object.create(null);
+    service.api = service.create(this);
+    descriptor.value = service.api; 
+
+    this.#services.push(service);
+    this.#apis[service.id] = service.api; 
+    
+    Object.defineProperty(this, service.id, descriptor)
+
+    return this;
   }
 }

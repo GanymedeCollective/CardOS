@@ -5,6 +5,7 @@ export type {
   ModuleDefinition,
   LifecyclePhase,
   Listener,
+  ServiceDefinition,
 } from "./types.js";
 export type { RNGService } from "./rng.js";
 export type { ClockService } from "./clock.js";
