@@ -5,18 +5,26 @@ import {
   type KernelOptions,
   type ModuleDefinition,
   type ServiceDefinition,
+  type Listener,
 } from "./types.js";
 import { createRNG, type RNGService } from "./rng.js";
 import { createClock, type ClockService } from "./clock.js";
+import { createBailHook, createSeriesHook, SKIPHOOK, type BailHook, type SeriesHook } from "./hooks.js";
 
 export class Kernel {
   #emitter = new EventEmitter();
   #phase: LifecyclePhase = "created";
+  
   #rng: RNGService;
   #clock: ClockService;
+  
   #modules: ModuleDefinition[];
+
   #services: ServiceDefinition[] = [];
   #apis: Record<string, any> = {};
+  
+  #bailHooks = new Map<string, BailHook<any, any>>();
+  #seriesHooks = new Map<string, SeriesHook<any, any>>();
 
   constructor(options: KernelOptions) {
     this.#modules = options.modules ?? [];
@@ -90,6 +98,37 @@ export class Kernel {
     this.#emitter.emit("kernel:destroyed"); // We do a little trolling
   }
 
+  emit<T = unknown>(event: string, payload?: T): void {
+    this.#emitter.emit(event, payload);
+  }
+
+  on<T = unknown>(event: string, listener: Listener<T>): void {
+    this.#emitter.on(event, listener);
+  }
+  
+  #getBailHook<T, R>(name: string): BailHook<T, R> {
+    if (!this.#bailHooks.has(name)) {
+      this.#bailHooks.set(name, createBailHook<T, R>());
+    }
+    return this.#bailHooks.get(name)!;
+  }
+ 
+  #getSeriesHook<T, R>(name: string): SeriesHook<T, R> {
+    if (!this.#seriesHooks.has(name)) {
+      this.#seriesHooks.set(name, createSeriesHook<T, R>());
+    }
+    return this.#seriesHooks.get(name)!;
+  }
+
+  callBailHook<T = unknown, R = void>(name: string, payload: T): Promise<R | typeof SKIPHOOK> {
+    return this.#getBailHook<T, R>(name).call(payload);
+  }
+
+  callSeriesHook<T = unknown, R = void>(name: string, payload: T) {
+    return this.#getSeriesHook<T, R>(name).call(payload);
+  }
+
+
   #buildContext(moduleId: string): KernelContext {
     return {
       moduleId,
@@ -98,6 +137,8 @@ export class Kernel {
       emit: (event, payload) => {
         this.#emitter.emit(event, payload)
       },
+      bailHook: (name) => this.#getBailHook(name),
+      seriesHook: (name) => this.#getSeriesHook(name),
       rng: this.#rng,
       clock: {
         tick: () => {

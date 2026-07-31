@@ -1,3 +1,4 @@
+import type { BailHook, SeriesHook } from "./hooks.js";
 import type { Kernel } from "./kernel.js";
 import type { RNGService } from "./rng.js";
 
@@ -11,6 +12,8 @@ export interface KernelContext {
   on<T = unknown>(event: string, listener: Listener<T>): void;
   off<T = unknown>(event: string, listener: Listener<T>): void;
   emit<T = unknown>(event: string, payload?: T): void;
+  bailHook<T = unknown, R = void>(name: string): BailHook<T, R>;
+  seriesHook<T = unknown, R = void>(name: string): SeriesHook<T, R>;
   rng: RNGService;
   clock: {
     tick(): number;
