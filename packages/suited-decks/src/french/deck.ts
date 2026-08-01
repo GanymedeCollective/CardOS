@@ -1,13 +1,13 @@
-import { Card, Pile } from "@cardos/core";
-import { RANKS, SUITS, type FrenchFace } from "./face.js";
+import { Pile } from "@cardos/core";
+import { FrenchCard, RANKS, SUITS } from "./card.js";
 
-export function buildFrenchDeck(): Pile<Card<FrenchFace>> {
-  const cards: Card<FrenchFace>[] = [];
+export function buildFrenchDeck(): Pile<FrenchCard> {
+  const cards: FrenchCard[] = [];
 
   for (const suit of SUITS) {
     for (const rank of RANKS) {
       const id = `${suit}-${rank}`;
-      cards.push(new Card<FrenchFace>(id, { suit, rank }));
+      cards.push(new FrenchCard(id, { suit, rank }));
     }
   }
 
